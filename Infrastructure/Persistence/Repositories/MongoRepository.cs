@@ -1,5 +1,4 @@
 using Application.Persistence.Repositories;
-using Infrastructure.Persistence;
 using MongoDB.Driver;
 
 namespace Infrastructure.Persistence.Repositories

@@ -1,18 +1,24 @@
 using Application;
 using Application.CCC.ExceptionHandling.Extensions;
+using Application.Middlewares;
 using Domain;
 using Infrastructure;
+using Serilog;
 using Shared;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+builder.Host.UseSerilog((context, services, loggerConfiguration) =>
+{
+    loggerConfiguration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.FromLogContext()
+        .WriteTo.Console();
+});
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
 
-// Add Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -25,32 +31,36 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // Register all layers
-builder.Services.AddShared();
+builder.Services.AddShared(builder.Configuration);
 builder.Services.AddDomain();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
-
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Austria Data Bridge API v1");
-        c.RoutePrefix = "swagger"; // Swagger UI will be available at /swagger
+        c.RoutePrefix = "swagger";
     });
 }
 
 app.UseHttpsRedirection();
-
 app.UseExceptionHandling();
+
+
+app.UseMiddleware<TracingMiddleware>();
+
+
+app.UseSerilogRequestLogging();
 
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();

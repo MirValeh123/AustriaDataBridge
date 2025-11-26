@@ -1,12 +1,17 @@
 using Application.Persistence.Repositories;
 using Application.Persistence.Repositories.Base;
+using Application.Persistence.Services;
 using Infrastructure.Configuration;
 using Infrastructure.Persistence;
 using Infrastructure.Persistence.Repositories;
 using Infrastructure.Persistence.Repositories.Base;
+using Infrastructure.Persistence.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Serializers;
 
 namespace Infrastructure
 {
@@ -14,6 +19,8 @@ namespace Infrastructure
     {
         public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
         {
+            ConfigureMongoGuidSerialization();
+
             // MongoDB Settings Configuration
             var mongoDbSettings = configuration.GetSection("MongoDbSettings").Get<MongoDbSettings>();
             
@@ -26,10 +33,7 @@ namespace Infrastructure
             services.Configure<MongoDbSettings>(configuration.GetSection("MongoDbSettings"));
 
             // Register MongoDB Client
-            services.AddSingleton<IMongoClient>(sp =>
-            {
-                return new MongoClient(mongoDbSettings.ConnectionString);
-            });
+            services.AddSingleton<IMongoClient>(_ => new MongoClient(mongoDbSettings.ConnectionString));
 
             // Register MongoDB Context
             services.AddScoped<MongoDbContext>();
@@ -40,18 +44,32 @@ namespace Infrastructure
             // Register MongoRepository
             services.AddScoped<IMongoRepository, MongoRepository>();
 
-            // External Services (HttpClient)
-            // services.AddHttpClient<IExternalService, ExternalService>();
+            services.AddScoped<ILoggingService, LoggingService>();
 
-            // Options Pattern
-            // services.Configure<SomeOptions>(configuration.GetSection("SomeOptions"));
-
-            // Serilog (if needed)
-            // Log.Logger = new LoggerConfiguration()
-            //     .ReadFrom.Configuration(configuration)
-            //     .CreateLogger();
+           
 
             return services;
+        }
+
+        private static void ConfigureMongoGuidSerialization()
+        {
+            var guidSerializer = new GuidSerializer(GuidRepresentation.Standard);
+            try
+            {
+                BsonSerializer.RegisterSerializer(typeof(Guid), guidSerializer);
+            }
+            catch (BsonSerializationException)
+            {
+                // already registered, ignore
+            }
+
+            try
+            {
+                BsonSerializer.RegisterSerializer(typeof(Guid?), new NullableSerializer<Guid>(guidSerializer));
+            }
+            catch (BsonSerializationException)
+            {
+            }
         }
     }
 }

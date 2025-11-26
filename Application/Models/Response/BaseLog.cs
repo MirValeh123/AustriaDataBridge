@@ -1,4 +1,5 @@
-﻿using MongoDB.Bson.Serialization.Attributes;
+﻿using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace Application.Models.Response
 {
@@ -10,6 +11,7 @@ namespace Application.Models.Response
         }
 
         [BsonId]
+        [BsonGuidRepresentation(GuidRepresentation.Standard)]
         public Guid Id { get; set; }
         public DateTime? LogDate { get; set; }
         public string RequestUrl { get; set; }

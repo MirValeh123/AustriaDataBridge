@@ -1,15 +1,24 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Shared.Constants;
+using Shared.Services;
+using System.IO;
 
 namespace Shared
 {
     public static class SharedDependencyInjection
     {
-        public static IServiceCollection AddShared(this IServiceCollection services)
+        public static IServiceCollection AddShared(this IServiceCollection services, IConfiguration configuration)
         {
-            // Shared services, utilities, helpers
-            // Example:
-            // services.AddScoped<IJsonSerializer, JsonSerializer>();
-            // services.AddScoped<ICryptoService, CryptoService>();
+            var appsettingsPath = configuration["Shared:AppsettingsFile"]
+                                  ?? Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+            var adminAppsettingsPath = configuration["Shared:AdminAppsettingsFile"]
+                                       ?? Path.Combine(AppContext.BaseDirectory, "appsettings.Admin.json");
+
+            AppSettingsValues.AppsettingsFileDirectory = appsettingsPath;
+            AppSettingsValues.AdminAppsettingsFileDirectory = adminAppsettingsPath;
+
+            services.AddSingleton<IAppSettingsService, AppSettingsService>();
 
             return services;
         }

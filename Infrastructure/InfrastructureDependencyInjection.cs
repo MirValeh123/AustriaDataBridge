@@ -12,6 +12,8 @@ using MongoDB.Driver;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
+using System.Net.Http.Headers;
+using Refit;
 
 namespace Infrastructure
 {
@@ -46,7 +48,7 @@ namespace Infrastructure
 
             services.AddScoped<ILoggingService, LoggingService>();
 
-           
+            ConfigureRefitClients(services, configuration);
 
             return services;
         }
@@ -70,6 +72,43 @@ namespace Infrastructure
             catch (BsonSerializationException)
             {
             }
+        }
+
+        private static void ConfigureRefitClients(IServiceCollection services, IConfiguration configuration)
+        {
+            var taxografUrl = configuration["Taxograf:Url"];
+            var taxografBaseUri = BuildTaxografBaseUri(taxografUrl);
+
+            services
+                .AddRefitClient<IManufactureApiClient>()
+                .ConfigureHttpClient(client =>
+                {
+                    client.BaseAddress = taxografBaseUri;
+                    client.DefaultRequestHeaders.Accept.Clear();
+                    client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                });
+        }
+
+        private static Uri BuildTaxografBaseUri(string? configuredUrl)
+        {
+            if (string.IsNullOrWhiteSpace(configuredUrl))
+            {
+                throw new InvalidOperationException("Taxograf:Url configuration is missing.");
+            }
+
+            if (!Uri.TryCreate(configuredUrl, UriKind.Absolute, out var configuredUri))
+            {
+                throw new InvalidOperationException("Taxograf:Url configuration is invalid.");
+            }
+
+            var builder = new UriBuilder(configuredUri)
+            {
+                Path = "/",
+                Query = string.Empty,
+                Fragment = string.Empty
+            };
+
+            return builder.Uri;
         }
     }
 }

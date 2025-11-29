@@ -23,7 +23,6 @@ namespace Infrastructure
         {
             ConfigureMongoGuidSerialization();
 
-            // MongoDB Settings Configuration
             var mongoDbSettings = configuration.GetSection("MongoDbSettings").Get<MongoDbSettings>();
             
             if (mongoDbSettings == null)
@@ -31,21 +30,11 @@ namespace Infrastructure
                 throw new InvalidOperationException("MongoDbSettings configuration is missing or invalid.");
             }
 
-            // Register MongoDB Settings as Options
             services.Configure<MongoDbSettings>(configuration.GetSection("MongoDbSettings"));
-
-            // Register MongoDB Client
             services.AddSingleton<IMongoClient>(_ => new MongoClient(mongoDbSettings.ConnectionString));
-
-            // Register MongoDB Context
             services.AddScoped<MongoDbContext>();
-
-            // Register Generic Repository
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
-
-            // Register MongoRepository
             services.AddScoped<IMongoRepository, MongoRepository>();
-
             services.AddScoped<ILoggingService, LoggingService>();
 
             ConfigureRefitClients(services, configuration);
@@ -62,7 +51,6 @@ namespace Infrastructure
             }
             catch (BsonSerializationException)
             {
-                // already registered, ignore
             }
 
             try
@@ -78,6 +66,7 @@ namespace Infrastructure
         {
             var taxografUrl = configuration["Taxograf:Url"];
             var taxografBaseUri = BuildTaxografBaseUri(taxografUrl);
+            var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Development";
 
             services
                 .AddRefitClient<IManufactureApiClient>()
@@ -86,6 +75,16 @@ namespace Infrastructure
                     client.BaseAddress = taxografBaseUri;
                     client.DefaultRequestHeaders.Accept.Clear();
                     client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                })
+                .ConfigureHttpMessageHandlerBuilder(builder =>
+                {
+                    if (environment == "Development")
+                    {
+                        builder.PrimaryHandler = new HttpClientHandler
+                        {
+                            ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) => true
+                        };
+                    }
                 });
         }
 
@@ -103,7 +102,6 @@ namespace Infrastructure
 
             var builder = new UriBuilder(configuredUri)
             {
-                Path = "/",
                 Query = string.Empty,
                 Fragment = string.Empty
             };

@@ -1,5 +1,9 @@
 using Application.CCC.ExceptionHandling.Extensions;
+using Application.External.Taxograf.Models;
+using Application.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Shared.ResponseHandlers;
+using static Shared.Delegates.MappingDelegate;
 
 namespace Application
 {
@@ -7,17 +11,13 @@ namespace Application
     {
         public static IServiceCollection AddApplication(this IServiceCollection services)
         {
-            // Exception Handling
             services.AddExceptionHandler();
-
-            // AutoMapper
-            // services.AddAutoMapper(typeof(ApplicationDependencyInjection));
-
-            // MediatR
-            // services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationDependencyInjection).Assembly));
-
-            // FluentValidation
-            // services.AddValidatorsFromAssembly(typeof(ApplicationDependencyInjection).Assembly);
+            services.AddScoped<IManufactureService, ManufactureService>();
+            services.AddScoped<TaxoqrafResponseHandler<ManufactureApiResponse, ManufactureApiResponse>>(sp =>
+            {
+                MapperDelagate<ManufactureApiResponse, ManufactureApiResponse> identityMapper = response => response;
+                return new TaxoqrafResponseHandler<ManufactureApiResponse, ManufactureApiResponse>(identityMapper);
+            });
 
             return services;
         }

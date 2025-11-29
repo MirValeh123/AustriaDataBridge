@@ -3,9 +3,15 @@ using Application.External.Taxograf.Models;
 
 namespace Application.Persistence.Services
 {
+    /// <summary>
+    /// Taxograf API ilə kommunikasiya üçün Refit client interface
+    /// </summary>
     public interface IManufactureApiClient
     {
-        [Get("/api/v1/Manufacture/getBatchForManufacturing/api/v1")]
+        /// <summary>
+        /// Manufacture batch məlumatlarını əldə edir
+        /// </summary>
+        [Get("/Manufacture/getBatchForManufacturing")]
         Task<ManufactureApiResponse> GetBatchForManufacturingAsync();
     }
 }

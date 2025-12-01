@@ -1,5 +1,6 @@
 using Application.External.Taxograf.Models;
 using Application.Persistence.Services;
+using Shared.Helpers;
 using Shared.ResponseHandlers;
 
 namespace Application.Services
@@ -21,6 +22,7 @@ namespace Application.Services
             _responseHandler = responseHandler ?? throw new ArgumentNullException(nameof(responseHandler));
         }
 
+
         /// <summary>
         /// Xarici API-dən manufacture batch məlumatlarını əldə edir və map edir
         /// </summary>
@@ -28,6 +30,16 @@ namespace Application.Services
         {
             var apiResponse = await _manufactureApiClient.GetBatchForManufacturingAsync();
             return _responseHandler.Handle(apiResponse);
+        }
+        /// <summary>
+        /// Xarici API-dən manufacture batch məlumatlarını əldə edir və Xml ə convert  edir
+        /// </summary>
+
+        public async Task<string> GetBatchForManufacturingAsXMLAsync()
+        {
+            var apiResponse = await _manufactureApiClient.GetBatchForManufacturingAsync();
+
+            return XmlConverter.ConvertToXml(apiResponse);
         }
     }
 }

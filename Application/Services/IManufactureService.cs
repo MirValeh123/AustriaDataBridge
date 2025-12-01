@@ -11,5 +11,7 @@ namespace Application.Services
         /// Xarici API-dən manufacture batch məlumatlarını əldə edir
         /// </summary>
         Task<ManufactureApiResponse> GetBatchForManufacturingAsync();
+
+        Task<string> GetBatchForManufacturingAsXMLAsync();
     }
 }

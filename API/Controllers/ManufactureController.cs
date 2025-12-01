@@ -15,10 +15,10 @@ namespace API.Controllers
         }
 
         [HttpGet("getBatchForManufacturing")]
-        public async Task<IActionResult> GetBatch()
-        {
-            var result = await _manufactureService.GetBatchForManufacturingAsync();
-            return Ok(result);
-        }
+        public async Task<IActionResult> GetBatch() => Ok(await _manufactureService.GetBatchForManufacturingAsync());
+
+        [HttpGet("getBatchForManufacturingAsXml")]
+        public async Task<IActionResult> GetBatchXMl() => Ok(await _manufactureService.GetBatchForManufacturingAsXMLAsync());
+
     }
 }

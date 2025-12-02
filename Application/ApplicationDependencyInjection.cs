@@ -1,4 +1,5 @@
 using Application.CCC.ExceptionHandling.Extensions;
+using Application.Converters;
 using Application.External.Taxograf.Models;
 using Application.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +14,7 @@ namespace Application
         {
             services.AddExceptionHandler();
             services.AddScoped<IManufactureService, ManufactureService>();
+            services.AddScoped<IControlCardRequestXmlConverter, ControlCardRequestXmlConverter>();
             services.AddScoped<TaxoqrafResponseHandler<ManufactureApiResponse, ManufactureApiResponse>>(sp =>
             {
                 MapperDelagate<ManufactureApiResponse, ManufactureApiResponse> identityMapper = response => response;

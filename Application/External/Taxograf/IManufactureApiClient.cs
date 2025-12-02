@@ -1,7 +1,7 @@
-﻿using Refit;
+using Refit;
 using Application.External.Taxograf.Models;
 
-namespace Application.Persistence.Services
+namespace Application.External.Taxograf
 {
     /// <summary>
     /// Taxograf API ilə kommunikasiya üçün Refit client interface
@@ -15,3 +15,4 @@ namespace Application.Persistence.Services
         Task<ManufactureApiResponse> GetBatchForManufacturingAsync();
     }
 }
+

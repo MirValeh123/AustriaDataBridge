@@ -10,7 +10,7 @@ namespace Application.External.Taxograf
     public interface IManufactureApiClient
     {
         /// <summary>
-        /// Manufacture batch məlumatlarını əldə edir (xam HttpResponseMessage şəklində)
+        /// Manufacture batch məlumatlarını əldə edir 
         /// </summary>
         [Get("/Manufacture/getBatchForManufacturing")]
         Task<HttpResponseMessage> GetBatchForManufacturingAsync();

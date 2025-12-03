@@ -37,6 +37,7 @@ namespace Infrastructure
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             services.AddScoped<IMongoRepository, MongoRepository>();
             services.AddScoped<ILoggingService, LoggingService>();
+            services.AddHostedService<ScheduledRequestService>();
 
             ConfigureRefitClients(services, configuration);
 

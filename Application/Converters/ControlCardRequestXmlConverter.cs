@@ -94,6 +94,7 @@ namespace Application.Converters
         {
             var cardElements = new List<XElement>
             {
+                // Driver kartları üçün də ümumi header hissəsini saxlayırıq
                 new XElement("Test", 1),
                 new XElement("cardNumber", string.Empty),
                 new XElement("cardIssueDate", DateTime.MinValue.ToString("yyyy-MM-ddTHH:mm:ss")),
@@ -103,6 +104,8 @@ namespace Application.Converters
 
             AddCardHolderIfExists(cardElements, dto.CardHolder);
             AddCardIssuingAuthorityIfExists(cardElements, dto.CardIssuingAuthority);
+            AddDrivingLicenceInfoIfExists(cardElements, dto.DrivingLicenceInfo);
+            AddBinaryDataIfExists(cardElements, dto.BinaryData);
 
             return new XElement("card", cardElements);
         }
@@ -163,13 +166,34 @@ namespace Application.Converters
         {
             if (holder == null) return;
 
-            cardElements.Add(new XElement("cardHolder",
+            var cardHolderElement = new XElement("cardHolder",
                 new XElement("cardHolderSurnameAzari", holder.CardHolderSurnameAzari ?? string.Empty),
                 new XElement("cardHolderSurnameLatin", holder.CardHolderSurnameLatin ?? string.Empty),
                 new XElement("cardHolderFirstNamesAzari", holder.CardHolderFirstNamesAzari ?? string.Empty),
                 new XElement("cardHolderFirstNamesLatin", holder.CardHolderFirstNamesLatin ?? string.Empty),
                 new XElement("cardHolderPreferredLanguage", holder.CardHolderPreferredLanguage ?? string.Empty)
-            ));
+            );
+
+            // Driver kartları üçün əlavə field-ləri də yazırıq
+            if (holder is DriverCardHolder driverHolder)
+            {
+                cardHolderElement.Add(
+                    new XElement("cardHolderBirthDate", driverHolder.CardHolderBirthDate.ToString("yyyy-MM-dd")),
+                    new XElement("cardHolderAddressAzari", driverHolder.CardHolderAddressAzari ?? string.Empty),
+                    new XElement("cardHolderAddressLatin", driverHolder.CardHolderAddressLatin ?? string.Empty)
+                );
+            }
+
+            // Workshop kartları üçün ünvan field-ləri
+            if (holder is WorkshopCardHolder workshopHolder)
+            {
+                cardHolderElement.Add(
+                    new XElement("cardHolderAddressAzari", workshopHolder.CardHolderAddressAzari ?? string.Empty),
+                    new XElement("cardHolderAddressLatin", workshopHolder.CardHolderAddressLatin ?? string.Empty)
+                );
+            }
+
+            cardElements.Add(cardHolderElement);
         }
 
         private void AddCardIssuingAuthorityIfExists(List<XElement> cardElements, ExportModelCardIssuingAuthority authority)
@@ -193,6 +217,28 @@ namespace Application.Converters
                 new XElement("controlBodyNameLatin", controlBody.ControlBodyNameLatin ?? string.Empty),
                 new XElement("controlBodyAddressAzari", controlBody.ControlBodyAddressAzari ?? string.Empty),
                 new XElement("controlBodyAddressLatin", controlBody.ControlBodyAddressLatin ?? string.Empty)
+            ));
+        }
+
+        private void AddDrivingLicenceInfoIfExists(List<XElement> cardElements, DrivingLicenceInfo drivingLicenceInfo)
+        {
+            if (drivingLicenceInfo == null) return;
+
+            cardElements.Add(new XElement("drivingLicenceInfo",
+                new XElement("drivingLicenceNumber", drivingLicenceInfo.DrivingLicenceNumber ?? string.Empty),
+                new XElement("drivingLicenceIssuingAuthorityAzari", drivingLicenceInfo.DrivingLicenceIssuingAuthorityAzari ?? string.Empty),
+                new XElement("drivingLicenceIssuingAuthorityLatin", drivingLicenceInfo.DrivingLicenceIssuingAuthorityLatin ?? string.Empty),
+                new XElement("drivingLicenceIssuingNation", drivingLicenceInfo.DrivingLicenceIssuingNation)
+            ));
+        }
+
+        private void AddBinaryDataIfExists(List<XElement> cardElements, ExportModelBinaryData binaryData)
+        {
+            if (binaryData == null) return;
+
+            cardElements.Add(new XElement("binaryData",
+                new XElement("photograph", binaryData.Photograph ?? string.Empty),
+                new XElement("signature", binaryData.Signature ?? string.Empty)
             ));
         }
     }

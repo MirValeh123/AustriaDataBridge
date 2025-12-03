@@ -1,3 +1,4 @@
+using System.Net.Http;
 using Refit;
 using Application.External.Taxograf.Models;
 
@@ -9,10 +10,13 @@ namespace Application.External.Taxograf
     public interface IManufactureApiClient
     {
         /// <summary>
-        /// Manufacture batch məlumatlarını əldə edir
+        /// Manufacture batch məlumatlarını əldə edir (xam HttpResponseMessage şəklində)
         /// </summary>
         [Get("/Manufacture/getBatchForManufacturing")]
-        Task<ManufactureApiResponse> GetBatchForManufacturingAsync();
+        Task<HttpResponseMessage> GetBatchForManufacturingAsync();
+
+        [Put("/Manufacture/setReadyOnManufacturerCallback")]
+        Task SetReadyOnManufacturerCallbackAsync([Body] SetReadyOnManufacturerCallbackRequest request);
     }
 }
 

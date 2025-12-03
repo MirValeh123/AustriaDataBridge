@@ -69,24 +69,23 @@ namespace Infrastructure
             var taxografBaseUri = BuildTaxografBaseUri(taxografUrl);
             var environment = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Development";
 
-            services
+            var httpClientBuilder = services
                 .AddRefitClient<IManufactureApiClient>()
                 .ConfigureHttpClient(client =>
                 {
                     client.BaseAddress = taxografBaseUri;
                     client.DefaultRequestHeaders.Accept.Clear();
                     client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-                })
-                .ConfigureHttpMessageHandlerBuilder(builder =>
-                {
-                    if (environment == "Development")
-                    {
-                        builder.PrimaryHandler = new HttpClientHandler
-                        {
-                            ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) => true
-                        };
-                    }
                 });
+
+            if (environment == "Development")
+            {
+                httpClientBuilder.ConfigurePrimaryHttpMessageHandler(() =>
+                    new HttpClientHandler
+                    {
+                        ServerCertificateCustomValidationCallback = (message, cert, chain, sslPolicyErrors) => true
+                    });
+            }
         }
 
         private static Uri BuildTaxografBaseUri(string? configuredUrl)

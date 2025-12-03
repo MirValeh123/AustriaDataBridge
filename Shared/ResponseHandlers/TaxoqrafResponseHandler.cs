@@ -1,63 +1,74 @@
-﻿using static Shared.Delegates.MappingDelegate;
+﻿using System.Net.Http;
+using static Shared.Delegates.MappingDelegate;
 
 namespace Shared.ResponseHandlers
 {
     /// <summary>
-    /// Generic response handler - istənilən API response-nu Application model-ə map edir
+    /// HttpResponseMessage-dən gələn content-i oxuyub Application model-ə map edən generic handler
     /// </summary>
-    public class TaxoqrafResponseHandler<TApiResponse,TApplicationModel>
+    public class TaxoqrafResponseHandler<TApplicationModel>
     {
-        private readonly MapperDelagate<TApiResponse,TApplicationModel> _mapperDelagate;
+        private readonly MapperDelagate<string, TApplicationModel> _contentMapper;
 
         /// <summary>
-        /// Constructor - mapper delegate qəbul edir
+        /// Constructor - HTTP content string-i üçün mapper delegate qəbul edir
         /// </summary>
-        /// 
-        public TaxoqrafResponseHandler(MapperDelagate<TApiResponse, TApplicationModel> mapperDelagate)
+        public TaxoqrafResponseHandler(MapperDelagate<string, TApplicationModel> contentMapper)
         {
-            _mapperDelagate = mapperDelagate ?? throw new ArgumentNullException(nameof(mapperDelagate));
+            _contentMapper = contentMapper ?? throw new ArgumentNullException(nameof(contentMapper));
         }
 
         /// <summary>
-        /// Tək obyekti handle və map edir
+        /// HttpResponseMessage-dən tək obyekti oxuyub və map edir
         /// </summary>
-        public TApplicationModel Handle(TApiResponse response)
+        public async Task<TApplicationModel> HandleAsync(HttpResponseMessage httpResponse)
         {
-            if (response == null) return default;
+            if (httpResponse == null)
+                throw new ArgumentNullException(nameof(httpResponse));
 
-            var mapperResult = _mapperDelagate(response);
+            var content = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
 
-            return mapperResult;
-        }
-        /// <summary>
-        /// Collection-u handle və map edir
-        /// </summary>
-        /// 
-        public List<TApplicationModel> HandleCollection(IEnumerable<TApiResponse> responses)
-        {
-            if (responses == null) return new List<TApplicationModel>();
-
-            var mapperResults = responses.Select(res => _mapperDelagate(res)).ToList();
-
-            return mapperResults;
+            return _contentMapper(content);
         }
 
         /// <summary>
-        /// Validation ilə handle edir
+        /// HttpResponseMessage-dən collection şəklində modelləri oxuyub və map edir
+        /// (məs: JSON array -> List&lt;TApplicationModel&gt;).
+        /// Collection map-lama loqikasını parametr olaraq verirsən.
         /// </summary>
-        public TApplicationModel HandleWithValidation(
-            TApiResponse apiResponse,
-            Func<TApiResponse, bool> validator)
+        public async Task<List<TApplicationModel>> HandleCollectionAsync(
+            HttpResponseMessage httpResponse,
+            Func<string, IEnumerable<TApplicationModel>> collectionMapper)
         {
-            if (apiResponse == null)
-                throw new ArgumentNullException(nameof(apiResponse), "API response cannot be null");
+            if (httpResponse == null)
+                throw new ArgumentNullException(nameof(httpResponse));
 
-            // Əvvəlcə validate edir
-            if (!validator(apiResponse))
-                throw new InvalidOperationException($"Validation failed for {typeof(TApiResponse).Name}");
+            if (collectionMapper == null)
+                throw new ArgumentNullException(nameof(collectionMapper));
 
-            // Sonra map edir
-            return Handle(apiResponse);
+            var content = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+            var models = collectionMapper(content);
+
+            return models?.ToList() ?? new List<TApplicationModel>();
+        }
+
+        /// <summary>
+        /// HttpResponseMessage-dən oxuyub, map edir və nəticəni validate edir
+        /// </summary>
+        public async Task<TApplicationModel> HandleWithValidationAsync(
+            HttpResponseMessage httpResponse,
+            Func<TApplicationModel, bool> validator)
+        {
+            if (validator == null)
+                throw new ArgumentNullException(nameof(validator));
+
+            var model = await HandleAsync(httpResponse).ConfigureAwait(false);
+
+            if (!validator(model))
+                throw new InvalidOperationException($"Validation failed for {typeof(TApplicationModel).Name}");
+
+            return model;
         }
     }
 }

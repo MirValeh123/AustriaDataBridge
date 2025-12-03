@@ -2,10 +2,12 @@ using Application.Converters;
 using Application.External.Taxograf;
 using Application.External.Taxograf.Models;
 using Application.Persistence.Services;
+using Application.Services.Abstract;
 using Shared.Helpers;
 using Shared.ResponseHandlers;
+using System.Net.Http;
 
-namespace Application.Services
+namespace Application.Services.Concrete
 {
     /// <summary>
     /// Manufacture servisi - Refit client və TaxoqrafResponseHandler istifadə edərək
@@ -14,12 +16,12 @@ namespace Application.Services
     public class ManufactureService : IManufactureService
     {
         private readonly IManufactureApiClient _manufactureApiClient;
-        private readonly TaxoqrafResponseHandler<ManufactureApiResponse, ManufactureApiResponse> _responseHandler;
+        private readonly TaxoqrafResponseHandler<ManufactureApiResponse> _responseHandler;
         private readonly IControlCardRequestXmlConverter _xmlConverter;
 
         public ManufactureService(
             IManufactureApiClient manufactureApiClient,
-            TaxoqrafResponseHandler<ManufactureApiResponse, ManufactureApiResponse> responseHandler,
+            TaxoqrafResponseHandler<ManufactureApiResponse> responseHandler,
             IControlCardRequestXmlConverter xmlConverter)
         {
             _manufactureApiClient = manufactureApiClient ?? throw new ArgumentNullException(nameof(manufactureApiClient));
@@ -33,18 +35,30 @@ namespace Application.Services
         /// </summary>
         public async Task<ManufactureApiResponse> GetBatchForManufacturingAsync()
         {
-            var apiResponse = await _manufactureApiClient.GetBatchForManufacturingAsync();
-            return _responseHandler.Handle(apiResponse);
+            var httpResponse = await _manufactureApiClient.GetBatchForManufacturingAsync();
+            var handledResponse = await _responseHandler.HandleAsync(httpResponse);
+            return handledResponse;
         }
         /// <summary>
         /// Xarici API-dən manufacture batch məlumatlarını əldə edir və Xml ə convert  edir
         /// </summary>
         public async Task<string> GetBatchForManufacturingAsXMLAsync()
         {
-            var apiResponse = await _manufactureApiClient.GetBatchForManufacturingAsync();
-            var handledResponse = _responseHandler.Handle(apiResponse);
+            var httpResponse = await _manufactureApiClient.GetBatchForManufacturingAsync();
+            var handledResponse = await _responseHandler.HandleAsync(httpResponse);
 
             return _xmlConverter.ConvertToXml(handledResponse);
+        }
+
+        /// <summary>
+        /// Xarici API-yə kartın hazır olduğunu bildirən callback-i forward edir
+        /// </summary>
+        public async Task SetReadyOnManufacturerCallbackAsync(SetReadyOnManufacturerCallbackRequest request)
+        {
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            await _manufactureApiClient.SetReadyOnManufacturerCallbackAsync(request);
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using Application.Services;
+﻿using Application.External.Taxograf.Models;
+using Application.Services.Abstract;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers
@@ -19,6 +20,13 @@ namespace API.Controllers
 
         [HttpGet("getBatchForManufacturingAsXml")]
         public async Task<IActionResult> GetBatchXMl() => Ok(await _manufactureService.GetBatchForManufacturingAsXMLAsync());
+
+        [HttpPut("setReadyOnManufacturerCallback")]
+        public async Task<IActionResult> SetReadyOnManufacturerCallbackRequest([FromBody] SetReadyOnManufacturerCallbackRequest request)
+        {
+            await _manufactureService.SetReadyOnManufacturerCallbackAsync(request);
+            return NoContent();
+        }
 
     }
 }

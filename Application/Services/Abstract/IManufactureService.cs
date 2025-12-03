@@ -1,6 +1,6 @@
 using Application.External.Taxograf.Models;
 
-namespace Application.Services
+namespace Application.Services.Abstract
 {
     /// <summary>
     /// Manufacture servisi üçün interface - xarici Taxograf API ilə işləyir
@@ -13,5 +13,7 @@ namespace Application.Services
         Task<ManufactureApiResponse> GetBatchForManufacturingAsync();
 
         Task<string> GetBatchForManufacturingAsXMLAsync();
+
+        Task SetReadyOnManufacturerCallbackAsync(SetReadyOnManufacturerCallbackRequest request);
     }
 }

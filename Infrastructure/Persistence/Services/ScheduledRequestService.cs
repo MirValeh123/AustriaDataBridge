@@ -1,9 +1,9 @@
 ﻿using Application.External.Taxograf.Models;
-using Application.Services.Abstract;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System.Net.Http;
 
 namespace Infrastructure.Persistence.Services
 {
@@ -56,8 +56,8 @@ namespace Infrastructure.Persistence.Services
             {
                 endpoints.Add(new ScheduledEndpoint
                 {
-                    Name = "HourlyManufactureBatch",
-                    Url = "/Manufacture/getBatchForManufacturing",
+                    Name = "HourlyManufactureBatchAsXml",
+                    Url = "api/Manufacture/getBatchForManufacturingAsXml",
                     Method = "GET",
                     Interval = TimeSpan.FromHours(1),
                     LastRun = DateTime.MinValue
@@ -71,8 +71,8 @@ namespace Infrastructure.Persistence.Services
             {
                 endpoints.Add(new ScheduledEndpoint
                 {
-                    Name = "DailyManufactureBatch",
-                    Url = "/Manufacture/getBatchForManufacturing",
+                    Name = "DailyManufactureBatchAsXml",
+                    Url = "api/Manufacture/getBatchForManufacturingAsXml",
                     Method = "GET",
                     Interval = TimeSpan.FromDays(1),
                     LastRun = DateTime.MinValue
@@ -99,8 +99,25 @@ namespace Infrastructure.Persistence.Services
             endpoint.LastRun = DateTime.UtcNow;
 
             using var scope = _serviceScopeFactory.CreateScope();
-            var manufactureService = scope.ServiceProvider.GetRequiredService<IManufactureService>();
-            var response = await manufactureService.GetBatchForManufacturingAsXMLAsync();
+            var httpClientFactory = scope.ServiceProvider.GetRequiredService<IHttpClientFactory>();
+            var client = httpClientFactory.CreateClient("ScheduledRequests");
+
+            var baseUrl = _configuration.GetValue<string>("ScheduledRequests:BaseUrl");
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                _logger.LogError("ScheduledRequests:BaseUrl configuration is missing or empty.");
+                return;
+            }
+
+            var baseUri = new Uri(baseUrl);
+            var fullUri = new Uri(baseUri, endpoint.Url);
+
+            _logger.LogInformation("Scheduled endpoint '{Name}' üçün HTTP sorğu göndərilir: {Url}", endpoint.Name, fullUri);
+
+            using var response = await client.GetAsync(fullUri, cancellationToken);
+            response.EnsureSuccessStatusCode();
+
+            _logger.LogInformation("Scheduled endpoint '{Name}' üçün HTTP sorğu tamamlandı. StatusCode: {StatusCode}", endpoint.Name, response.StatusCode);
         }
     }
 }

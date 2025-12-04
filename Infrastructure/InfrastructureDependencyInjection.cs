@@ -9,6 +9,7 @@ using Infrastructure.Persistence.Repositories.Base;
 using Infrastructure.Persistence.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http;
 using MongoDB.Driver;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -37,6 +38,8 @@ namespace Infrastructure
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             services.AddScoped<IMongoRepository, MongoRepository>();
             services.AddScoped<ILoggingService, LoggingService>();
+
+            services.AddHttpClient("ScheduledRequests");
             services.AddHostedService<ScheduledRequestService>();
 
             ConfigureRefitClients(services, configuration);

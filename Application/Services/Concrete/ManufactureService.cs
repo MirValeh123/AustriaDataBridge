@@ -18,25 +18,56 @@ namespace Application.Services.Concrete
         private readonly IManufactureApiClient _manufactureApiClient;
         private readonly TaxoqrafResponseHandler<ManufactureApiResponse> _responseHandler;
         private readonly IControlCardRequestXmlConverter _xmlConverter;
+        private readonly ILoggingService _loggingService;
 
         public ManufactureService(
             IManufactureApiClient manufactureApiClient,
             TaxoqrafResponseHandler<ManufactureApiResponse> responseHandler,
-            IControlCardRequestXmlConverter xmlConverter)
+            IControlCardRequestXmlConverter xmlConverter,
+            ILoggingService loggingService)
         {
             _manufactureApiClient = manufactureApiClient ?? throw new ArgumentNullException(nameof(manufactureApiClient));
             _responseHandler = responseHandler ?? throw new ArgumentNullException(nameof(responseHandler));
             _xmlConverter = xmlConverter ?? throw new ArgumentNullException(nameof(xmlConverter));
+            _loggingService = loggingService;
         }
 
 
         /// <summary>
         /// Xarici API-dən manufacture batch məlumatlarını əldə edir və map edir
         /// </summary>
+        //public async Task<ManufactureApiResponse> GetBatchForManufacturingAsync()
+        //{
+        //    var httpResponse = await _manufactureApiClient.GetBatchForManufacturingAsync();
+        //    var handledResponse = await _responseHandler.HandleAsync(httpResponse);
+        //    return handledResponse;
+        //}
+
         public async Task<ManufactureApiResponse> GetBatchForManufacturingAsync()
         {
             var httpResponse = await _manufactureApiClient.GetBatchForManufacturingAsync();
             var handledResponse = await _responseHandler.HandleAsync(httpResponse);
+
+            if (handledResponse != null)
+            {
+                var cardExports = new List<CardExportWrapper>
+        {
+            handledResponse.DriverCardsExportModel,
+            handledResponse.TransporterCardsExportModel,
+            handledResponse.WorkshopCardsExportModel,
+            handledResponse.InspectorCardsExportModel
+        }.Where(x => x != null);
+
+                foreach (var cardExport in cardExports)
+                {
+                    await _loggingService.SaveExportJobLog(
+                        cardExport.JobNumber,
+                        cardExport.EquipmentType.ToString(),
+                        cardExport.CardAmount
+                    );
+                }
+            }
+
             return handledResponse;
         }
         /// <summary>

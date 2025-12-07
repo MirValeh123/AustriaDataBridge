@@ -8,6 +8,7 @@ namespace Application.Persistence.Services
         Task<BaseLog> SaveRequestLog(HttpContext httpContext);
         Task SaveResponseLog(HttpResponse response, BaseLog requestLog, string responseBody);
 
+        Task SaveExportJobLog(string jobNumber, string equipmentType, int cardAmount);
 
     }
 }

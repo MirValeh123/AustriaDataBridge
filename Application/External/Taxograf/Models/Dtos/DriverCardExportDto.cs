@@ -2,7 +2,7 @@ using Application.External.Taxograf.Models.Base;
 
 namespace Application.External.Taxograf.Models.Dtos
 {
-    public class DriverCardExportDto
+    public class DriverCardExportDto : ExportModelCardBase
     {
         public DriverCardHolder CardHolder { get; set; }
         public ExportModelCardIssuingAuthority CardIssuingAuthority { get; set; }

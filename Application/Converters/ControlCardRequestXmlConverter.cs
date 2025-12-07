@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Xml.Linq;
 using Application.External.Taxograf.Models;
 using Application.External.Taxograf.Models.Dtos;
@@ -16,27 +19,44 @@ namespace Application.Converters
                 throw new ArgumentNullException(nameof(response));
 
             var totalCards = CalculateTotalCards(response);
-            var xmlDocument = BuildXmlDocument(response, totalCards);
+            var jobInformation = ResolveJobInformation(response, totalCards);
+            var xmlDocument = BuildXmlDocument(response, jobInformation);
 
             return FormatXmlDocument(xmlDocument);
         }
 
         private int CalculateTotalCards(ManufactureApiResponse response)
         {
-            return (response.DriverCardsExportModel?.Count ?? 0) +
-                   (response.TransporterCardsExportModel?.Count ?? 0) +
-                   (response.WorkshopCardsExportModel?.Count ?? 0) +
-                   (response.InspectorCardsExportModel?.Count ?? 0);
+            var driverCards = response.DriverCardsExportModel?.CardAmount > 0
+                ? response.DriverCardsExportModel.CardAmount
+                : response.DriverCardsExportModel?.ExportModels?.Count ?? 0;
+
+            var transporterCards = response.TransporterCardsExportModel?.CardAmount > 0
+                ? response.TransporterCardsExportModel.CardAmount
+                : response.TransporterCardsExportModel?.ExportModels?.Count ?? 0;
+
+            var workshopCards = response.WorkshopCardsExportModel?.CardAmount > 0
+                ? response.WorkshopCardsExportModel.CardAmount
+                : response.WorkshopCardsExportModel?.ExportModels?.Count ?? 0;
+
+            var inspectorCards = response.InspectorCardsExportModel?.CardAmount > 0
+                ? response.InspectorCardsExportModel.CardAmount
+                : response.InspectorCardsExportModel?.ExportModels?.Count ?? 0;
+
+            return driverCards + transporterCards + workshopCards + inspectorCards;
         }
 
-        private XDocument BuildXmlDocument(ManufactureApiResponse response, int totalCards)
+        private XDocument BuildXmlDocument(ManufactureApiResponse response, CardExportWrapper jobInformation)
         {
+            if (jobInformation == null)
+                throw new InvalidOperationException("Job information could not be resolved.");
+
             var root = new XElement("controlCardRequest",
                 new XAttribute(XNamespace.Xmlns + "xsd", "http://www.w3.org/2001/XMLSchema"),
                 new XAttribute(XNamespace.Xmlns + "xsi", "http://www.w3.org/2001/XMLSchema-instance"),
-                
+
                 new XElement("data",
-                    BuildJobInformationElement(totalCards),
+                    BuildJobInformationElement(jobInformation),
                     BuildCardRequestElement(response)
                 )
             );
@@ -44,14 +64,14 @@ namespace Application.Converters
             return new XDocument(new XDeclaration("1.0", "utf-8", null), root);
         }
 
-        private XElement BuildJobInformationElement(int totalCards)
+        private XElement BuildJobInformationElement(CardExportWrapper jobInformation)
         {
             return new XElement("jobInformation",
-                new XElement("jobNumber", "100004085"),
-                new XElement("creationTime", DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss")),
-                new XElement("equipmentType", 3),
-                new XElement("cardAmount", totalCards),
-                new XElement("cardIssuingMemberState", "AZ")
+                new XElement("jobNumber", jobInformation.JobNumber ),
+                new XElement("creationTime", jobInformation.CreationTime.ToString("yyyy-MM-ddTHH:mm:ss")),
+                new XElement("equipmentType", jobInformation.EquipmentType),
+                new XElement("cardAmount", jobInformation.CardAmount),
+                new XElement("cardIssuingMemberState", jobInformation.CardIssuingMemberState ?? string.Empty)
             );
         }
 
@@ -59,17 +79,10 @@ namespace Application.Converters
         {
             var cardElements = new List<XElement>();
 
-            if (response.DriverCardsExportModel != null)
-                cardElements.AddRange(response.DriverCardsExportModel.Select(CreateDriverCardElement));
-
-            if (response.TransporterCardsExportModel != null)
-                cardElements.AddRange(response.TransporterCardsExportModel.Select(CreateTransporterCardElement));
-
-            if (response.WorkshopCardsExportModel != null)
-                cardElements.AddRange(response.WorkshopCardsExportModel.Select(CreateWorkshopCardElement));
-
-            if (response.InspectorCardsExportModel != null)
-                cardElements.AddRange(response.InspectorCardsExportModel.Select(CreateInspectorCardElement));
+            cardElements.AddRange(response.DriverCardsExportModel?.ExportModels?.Select(CreateDriverCardElement) ?? Enumerable.Empty<XElement>());
+            cardElements.AddRange(response.TransporterCardsExportModel?.ExportModels?.Select(CreateTransporterCardElement) ?? Enumerable.Empty<XElement>());
+            cardElements.AddRange(response.WorkshopCardsExportModel?.ExportModels?.Select(CreateWorkshopCardElement) ?? Enumerable.Empty<XElement>());
+            cardElements.AddRange(response.InspectorCardsExportModel?.ExportModels?.Select(CreateInspectorCardElement) ?? Enumerable.Empty<XElement>());
 
             return new XElement("cardRequest", cardElements);
         }
@@ -78,10 +91,10 @@ namespace Application.Converters
         {
             using (var writer = new System.IO.StringWriter())
             {
-                using (var xmlWriter = System.Xml.XmlWriter.Create(writer, new System.Xml.XmlWriterSettings 
-                { 
+                using (var xmlWriter = System.Xml.XmlWriter.Create(writer, new System.Xml.XmlWriterSettings
+                {
                     Indent = true,
-                    OmitXmlDeclaration = false 
+                    OmitXmlDeclaration = false
                 }))
                 {
                     document.WriteTo(xmlWriter);
@@ -94,12 +107,11 @@ namespace Application.Converters
         {
             var cardElements = new List<XElement>
             {
-                // Driver kartları üçün də ümumi header hissəsini saxlayırıq
-                new XElement("Test", 1),
-                new XElement("cardNumber", string.Empty),
-                new XElement("cardIssueDate", DateTime.MinValue.ToString("yyyy-MM-ddTHH:mm:ss")),
-                new XElement("cardValidityBegin", DateTime.MinValue.ToString("yyyy-MM-ddTHH:mm:ss")),
-                new XElement("cardExpiryDate", DateTime.MinValue.ToString("yyyy-MM-ddTHH:mm:ss"))
+                new XElement("Test", dto.Test),
+                new XElement("cardNumber", dto.CardNumber ?? string.Empty),
+                new XElement("cardIssueDate", FormatDateTime(dto.CardIssueDate)),
+                new XElement("cardValidityBegin", FormatDateTime(dto.CardValidityBegin)),
+                new XElement("cardExpiryDate", FormatDateTime(dto.CardExpiryDate))
             };
 
             AddCardHolderIfExists(cardElements, dto.CardHolder);
@@ -110,19 +122,20 @@ namespace Application.Converters
             return new XElement("card", cardElements);
         }
 
-        private XElement CreateTransporterCardElement(TrasnporterCardExportDto dto)
+        private XElement CreateTransporterCardElement(TransporterCardExportDto dto)
         {
             var cardElements = new List<XElement>
             {
                 new XElement("Test", dto.Test),
                 new XElement("cardNumber", dto.CardNumber ?? string.Empty),
-                new XElement("cardIssueDate", dto.CardIssueDate.ToString("yyyy-MM-ddTHH:mm:ss")),
-                new XElement("cardValidityBegin", dto.CardValidityBegin.ToString("yyyy-MM-ddTHH:mm:ss")),
-                new XElement("cardExpiryDate", dto.CardExpiryDate.ToString("yyyy-MM-ddTHH:mm:ss"))
+                new XElement("cardIssueDate", FormatDateTime(dto.CardIssueDate)),
+                new XElement("cardValidityBegin", FormatDateTime(dto.CardValidityBegin)),
+                new XElement("cardExpiryDate", FormatDateTime(dto.CardExpiryDate))
             };
 
             AddCardHolderIfExists(cardElements, dto.CardHolder);
             AddCardIssuingAuthorityIfExists(cardElements, dto.CardIssuingAuthority);
+            AddCompanyIfExists(cardElements, dto.Company);
 
             return new XElement("card", cardElements);
         }
@@ -133,13 +146,15 @@ namespace Application.Converters
             {
                 new XElement("Test", dto.Test),
                 new XElement("cardNumber", dto.CardNumber ?? string.Empty),
-                new XElement("cardIssueDate", dto.CardIssueDate.ToString("yyyy-MM-ddTHH:mm:ss")),
-                new XElement("cardValidityBegin", dto.CardValidityBegin.ToString("yyyy-MM-ddTHH:mm:ss")),
-                new XElement("cardExpiryDate", dto.CardExpiryDate.ToString("yyyy-MM-ddTHH:mm:ss"))
+                new XElement("cardIssueDate", FormatDateTime(dto.CardIssueDate)),
+                new XElement("cardValidityBegin", FormatDateTime(dto.CardValidityBegin)),
+                new XElement("cardExpiryDate", FormatDateTime(dto.CardExpiryDate))
             };
 
             AddCardHolderIfExists(cardElements, dto.CardHolder);
             AddCardIssuingAuthorityIfExists(cardElements, dto.CardIssuingAuthority);
+            AddWorkshopIfExists(cardElements, dto.Workshop);
+            AddBinaryDataIfExists(cardElements, dto.BinaryData);
 
             return new XElement("card", cardElements);
         }
@@ -150,9 +165,9 @@ namespace Application.Converters
             {
                 new XElement("Test", dto.Test),
                 new XElement("cardNumber", dto.CardNumber ?? string.Empty),
-                new XElement("cardIssueDate", dto.CardIssueDate.ToString("yyyy-MM-ddTHH:mm:ss")),
-                new XElement("cardValidityBegin", dto.CardValidityBegin.ToString("yyyy-MM-ddTHH:mm:ss")),
-                new XElement("cardExpiryDate", dto.CardExpiryDate.ToString("yyyy-MM-ddTHH:mm:ss"))
+                new XElement("cardIssueDate", FormatDateTime(dto.CardIssueDate)),
+                new XElement("cardValidityBegin", FormatDateTime(dto.CardValidityBegin)),
+                new XElement("cardExpiryDate", FormatDateTime(dto.CardExpiryDate))
             };
 
             AddCardHolderIfExists(cardElements, dto.CardHolder);
@@ -174,7 +189,6 @@ namespace Application.Converters
                 new XElement("cardHolderPreferredLanguage", holder.CardHolderPreferredLanguage ?? string.Empty)
             );
 
-            // Driver kartları üçün əlavə field-ləri də yazırıq
             if (holder is DriverCardHolder driverHolder)
             {
                 cardHolderElement.Add(
@@ -184,7 +198,6 @@ namespace Application.Converters
                 );
             }
 
-            // Workshop kartları üçün ünvan field-ləri
             if (holder is WorkshopCardHolder workshopHolder)
             {
                 cardHolderElement.Add(
@@ -238,9 +251,96 @@ namespace Application.Converters
 
             cardElements.Add(new XElement("binaryData",
                 new XElement("photograph", binaryData.Photograph ?? string.Empty),
-                new XElement("signature", binaryData.Signature ?? string.Empty)
+                new XElement("signature", binaryData.Signature ?? string.Empty),
+                new XElement("photographMinioToken", binaryData.PhotographMinioToken ?? string.Empty),
+                new XElement("signatureMinioToken", binaryData.SignatureMinioToken ?? string.Empty)
             ));
         }
+
+        private void AddCompanyIfExists(List<XElement> cardElements, ExportModelTransporter company)
+        {
+            if (company == null) return;
+
+            cardElements.Add(new XElement("company",
+                new XElement("companyNameAzari", company.CompanyNameAzari ?? string.Empty),
+                new XElement("companyNameLatin", company.CompanyNameLatin ?? string.Empty),
+                new XElement("companyAddressAzari", company.CompanyAddressAzari ?? string.Empty),
+                new XElement("companyAddressLatin", company.CompanyAddressLatin ?? string.Empty)
+            ));
+        }
+
+        private void AddWorkshopIfExists(List<XElement> cardElements, ExportModelWorkshop workshop)
+        {
+            if (workshop == null) return;
+
+            cardElements.Add(new XElement("workshop",
+                new XElement("workshopNameAzari", workshop.WorkshopNameAzari ?? string.Empty),
+                new XElement("workshopNameLatin", workshop.WorkshopNameLatin ?? string.Empty),
+                new XElement("workshopAddressAzari", workshop.WorkshopAddressAzari ?? string.Empty),
+                new XElement("workshopAddressLatin", workshop.WorkshopAddressLatin ?? string.Empty)
+            ));
+        }
+
+        private CardExportWrapper ResolveJobInformation(ManufactureApiResponse response, int totalCards)
+        {
+            var jobInformation = ExtractJobInformationFromWrappers(response) ?? new CardExportWrapper();
+
+            // Default dəyərləri təyin et
+            jobInformation.CardAmount = totalCards;
+            jobInformation.CreationTime = jobInformation.CreationTime == default ? DateTime.Now : jobInformation.CreationTime;
+            jobInformation.CardIssuingMemberState = string.IsNullOrWhiteSpace(jobInformation.CardIssuingMemberState)
+                ? "AZ"
+                : jobInformation.CardIssuingMemberState;
+            jobInformation.JobNumber = jobInformation.JobNumber;
+            jobInformation.EquipmentType = jobInformation.EquipmentType;
+
+            return jobInformation;
+        }
+
+        private CardExportWrapper ExtractJobInformationFromWrappers(ManufactureApiResponse response)
+        {
+            // Əvvəlcə bütün wrapper-lardan məlumatları yığırıq
+            var wrappers = new CardExportWrapper[]
+            {
+                response.DriverCardsExportModel,
+                response.TransporterCardsExportModel,
+                response.WorkshopCardsExportModel,
+                response.InspectorCardsExportModel
+            }.Where(w => w != null).ToList();
+
+            if (wrappers.Count == 0)
+                return null;
+
+            // İlk wrapper-dan məlumatları götürürük
+            var firstWrapper = wrappers.First();
+
+            return new CardExportWrapper
+            {
+                JobNumber = firstWrapper.JobNumber,
+                CardIssuingMemberState = firstWrapper.CardIssuingMemberState,
+                CardAmount = firstWrapper.CardAmount,
+                CreationTime = firstWrapper.CreationTime,
+                EquipmentType = firstWrapper.EquipmentType
+            };
+        }
+
+        private string FormatDateTime(DateTime value)
+        {
+            return value == default
+                ? string.Empty
+                : value.ToString("yyyy-MM-ddTHH:mm:ss");
+        }
+
+        //private static int _lastJobNumber = 0;
+        //private static readonly object _lock = new object();
+
+        //private string GetNextJobNumber()
+        //{
+        //    lock (_lock)
+        //    {
+        //        _lastJobNumber++;
+        //        return _lastJobNumber.ToString();
+        //    }
+        //}
     }
 }
-

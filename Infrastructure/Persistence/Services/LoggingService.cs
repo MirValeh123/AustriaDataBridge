@@ -12,6 +12,7 @@ namespace Infrastructure.Persistence.Services
         private readonly IMongoRepository _mongoRepository;
         private readonly string _requestLogCollection;
         private readonly IAppSettingsService _appSettings;
+        private readonly string _exportJobLogCollection;
 
 
         public LoggingService(IMongoRepository mongoRepository, IAppSettingsService appSettings)
@@ -26,8 +27,16 @@ namespace Infrastructure.Persistence.Services
             }
 
             _requestLogCollection = collection;
+
+            var exportCollection = _appSettings.AppSettingsInstance?.MongoDbSettings?.ExportJobLogCollection;
+            if (string.IsNullOrWhiteSpace(exportCollection))
+            {
+                throw new InvalidOperationException("MongoDbSettings.ExportJobLogCollection is not configured.");
+            }
+            _exportJobLogCollection = exportCollection;
         }
 
+        
 
         public async Task<BaseLog> SaveRequestLog(HttpContext httpContext)
         {
@@ -70,6 +79,18 @@ namespace Infrastructure.Persistence.Services
 
         }
 
+
+        public async Task SaveExportJobLog(string jobNumber, string equipmentType, int cardAmount)
+        {
+            var log = new ExportJobLog
+            {
+                JobNumber = jobNumber,
+                EquipmentType = equipmentType,
+                CardAmount = cardAmount,
+                CreationTime = DateTime.UtcNow
+            };
+            await _mongoRepository.InsertRecordAsync(_exportJobLogCollection, log);
+        }
 
 
         private async Task<string> GetRequestBody(HttpContext httpContext)

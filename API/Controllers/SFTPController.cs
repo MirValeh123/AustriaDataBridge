@@ -16,7 +16,7 @@ namespace API.Controllers
             _manufactureService = manufactureService;
         }
 
-        [HttpPost("uploadBatchXml")]
+        [HttpPut("uploadBatchXml")]
         public async Task<IActionResult> UploadBatchXmlToSftp()
         {
 

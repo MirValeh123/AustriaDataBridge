@@ -1,9 +1,9 @@
 ﻿using Application.External.Taxograf.Models;
+using System.Net.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Net.Http;
 
 namespace Infrastructure.Persistence.Services
 {
@@ -59,7 +59,15 @@ namespace Infrastructure.Persistence.Services
                     Name = "HourlyManufactureBatchAsXml",
                     Url = "api/Manufacture/getBatchForManufacturingAsXml",
                     Method = "GET",
-                    Interval = TimeSpan.FromHours(1),
+                    Interval = TimeSpan.FromMinutes(1),
+                    LastRun = DateTime.MinValue
+                });
+                endpoints.Add(new ScheduledEndpoint
+                {
+                    Name = "HourlyUploadBatchXml",
+                    Url = "api/Sftp/uploadBatchXml",
+                    Method = "PUT",
+                    Interval = TimeSpan.FromMinutes(1),
                     LastRun = DateTime.MinValue
                 });
                 _logger.LogInformation("Saatlıq sorğu aktivləşdirildi.");
@@ -77,6 +85,14 @@ namespace Infrastructure.Persistence.Services
                     Interval = TimeSpan.FromDays(1),
                     LastRun = DateTime.MinValue
                 });
+                endpoints.Add(new ScheduledEndpoint
+                {
+                    Name = "DailyUploadBatchXml",
+                    Url = "api/Sftp/uploadBatchXml",
+                    Method = "PUT",
+                    Interval = TimeSpan.FromDays(1),
+                    LastRun = DateTime.MinValue
+                });
                 _logger.LogInformation("Günlük sorğu aktivləşdirildi.");
             }
 
@@ -91,11 +107,6 @@ namespace Infrastructure.Persistence.Services
 
         private async Task ExecuteEndpointAsync(ScheduledEndpoint endpoint, CancellationToken cancellationToken)
         {
-            if (!endpoint.Method.Equals("GET", StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
-
             endpoint.LastRun = DateTime.UtcNow;
 
             using var scope = _serviceScopeFactory.CreateScope();
@@ -112,9 +123,16 @@ namespace Infrastructure.Persistence.Services
             var baseUri = new Uri(baseUrl);
             var fullUri = new Uri(baseUri, endpoint.Url);
 
-            _logger.LogInformation("Scheduled endpoint '{Name}' üçün HTTP sorğu göndərilir: {Url}", endpoint.Name, fullUri);
+            _logger.LogInformation("Scheduled endpoint '{Name}' üçün HTTP sorğu göndərilir: {Url} ({Method})", endpoint.Name, fullUri, endpoint.Method);
 
-            using var response = await client.GetAsync(fullUri, cancellationToken);
+            var method = new HttpMethod(endpoint.Method);
+            using var request = new HttpRequestMessage(method, fullUri)
+            {
+                // PUT üçün body tələb olunmursa boş content göndəririk
+                Content = method == HttpMethod.Put ? new StringContent(string.Empty) : null
+            };
+
+            using var response = await client.SendAsync(request, cancellationToken);
             response.EnsureSuccessStatusCode();
 
             _logger.LogInformation("Scheduled endpoint '{Name}' üçün HTTP sorğu tamamlandı. StatusCode: {StatusCode}", endpoint.Name, response.StatusCode);

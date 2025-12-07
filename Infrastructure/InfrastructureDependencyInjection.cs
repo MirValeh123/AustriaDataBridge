@@ -40,7 +40,7 @@ namespace Infrastructure
             services.AddScoped<ILoggingService, LoggingService>();
 
             services.AddHttpClient("ScheduledRequests");
-            services.AddHostedService<ScheduledRequestService>();
+            //services.AddHostedService<ScheduledRequestService>();
 
             ConfigureRefitClients(services, configuration);
 

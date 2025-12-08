@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using Application.External.Taxograf.Converters;
+using System.Text.Json.Serialization;
 using Application.External.Taxograf.Models.Dtos;
 using Domain.Enums;
 
@@ -18,6 +20,8 @@ namespace Application.External.Taxograf.Models
         public string JobNumber { get; set; }
         public DateTime CreationTime { get; set; }
 
+        [JsonPropertyName("appealFormId")]
+        [JsonConverter(typeof(AppealFormIdToEquipmentTypeConverter))]
         public EquipmentTypeEnum EquipmentType { get; set; }
         public int CardAmount { get; set; }
         public string CardIssuingMemberState { get; set; }

@@ -1,5 +1,6 @@
 ﻿using Application.External.Taxograf.Models;
-using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -59,16 +60,17 @@ namespace Infrastructure.Persistence.Services
                     Name = "HourlyManufactureBatchAsXml",
                     Url = "api/Manufacture/getBatchForManufacturingAsXml",
                     Method = "GET",
-                    Interval = TimeSpan.FromMinutes(1),
+                    Interval = TimeSpan.FromHours(1),
                     LastRun = DateTime.MinValue
                 });
                 endpoints.Add(new ScheduledEndpoint
                 {
-                    Name = "HourlyUploadBatchXml",
-                    Url = "api/Sftp/uploadBatchXml",
+                    Name = "HourlySentToManufacturerCallback",
+                    Url = "api/Manufacture/sentToManufacturerCallback",
                     Method = "PUT",
-                    Interval = TimeSpan.FromMinutes(1),
-                    LastRun = DateTime.MinValue
+                    Interval = TimeSpan.FromHours(1),
+                    LastRun = DateTime.MinValue,
+                    RequiresBody = true
                 });
                 _logger.LogInformation("Saatlıq sorğu aktivləşdirildi.");
             }
@@ -87,11 +89,12 @@ namespace Infrastructure.Persistence.Services
                 });
                 endpoints.Add(new ScheduledEndpoint
                 {
-                    Name = "DailyUploadBatchXml",
-                    Url = "api/Sftp/uploadBatchXml",
+                    Name = "DailySentToManufacturerCallback",
+                    Url = "api/Manufacture/sentToManufacturerCallback",
                     Method = "PUT",
                     Interval = TimeSpan.FromDays(1),
-                    LastRun = DateTime.MinValue
+                    LastRun = DateTime.MinValue,
+                    RequiresBody = true
                 });
                 _logger.LogInformation("Günlük sorğu aktivləşdirildi.");
             }
@@ -126,11 +129,26 @@ namespace Infrastructure.Persistence.Services
             _logger.LogInformation("Scheduled endpoint '{Name}' üçün HTTP sorğu göndərilir: {Url} ({Method})", endpoint.Name, fullUri, endpoint.Method);
 
             var method = new HttpMethod(endpoint.Method);
-            using var request = new HttpRequestMessage(method, fullUri)
+            using var request = new HttpRequestMessage(method, fullUri);
+
+            // PUT sorğusu üçün body hazırla
+            if (endpoint.RequiresBody && method == HttpMethod.Put)
             {
-                // PUT üçün body tələb olunmursa boş content göndəririk
-                Content = method == HttpMethod.Put ? new StringContent(string.Empty) : null
-            };
+                var requestBody = new
+                {
+                    cardNumbers = new List<string>(),
+                    jobNumber = string.Empty
+                };
+
+                var jsonContent = JsonSerializer.Serialize(requestBody, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
+
+                request.Content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+                _logger.LogDebug("Request body: {Body}", jsonContent);
+            }
 
             using var response = await client.SendAsync(request, cancellationToken);
             response.EnsureSuccessStatusCode();

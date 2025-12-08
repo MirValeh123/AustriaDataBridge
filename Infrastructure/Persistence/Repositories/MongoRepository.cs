@@ -12,6 +12,12 @@ namespace Infrastructure.Persistence.Repositories
             _context = context;
         }
 
+        public async Task<List<T>> GetAllAsync<T>(string table) where T : class
+        {
+            var collection = _context.GetCollection<T>(table);
+            return await collection.Find(_ => true).ToListAsync();
+        }
+
         public async Task<T> InsertRecordAsync<T>(string table, T record) where T : class
         {
             var collection = _context.GetCollection<T>(table);

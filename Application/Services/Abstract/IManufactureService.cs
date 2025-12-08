@@ -15,5 +15,7 @@ namespace Application.Services.Abstract
         Task<string> GetBatchForManufacturingAsXMLAsync();
 
         Task SetReadyOnManufacturerCallbackAsync(SetReadyOnManufacturerCallbackRequest request);
+
+        Task SentToManufacturerCallback(SentToManufacturerCallbackRequest request);
     }
 }

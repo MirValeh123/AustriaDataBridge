@@ -38,9 +38,10 @@ namespace Infrastructure
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             services.AddScoped<IMongoRepository, MongoRepository>();
             services.AddScoped<ILoggingService, LoggingService>();
+            services.AddSingleton<IJobNumberService, JobNumberService>();
 
             services.AddHttpClient("ScheduledRequests");
-            //services.AddHostedService<ScheduledRequestService>();
+            services.AddHostedService<ScheduledRequestService>();
 
             ConfigureRefitClients(services, configuration);
 

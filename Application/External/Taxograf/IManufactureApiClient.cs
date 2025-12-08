@@ -17,6 +17,9 @@ namespace Application.External.Taxograf
 
         [Put("/Manufacture/setReadyOnManufacturerCallback")]
         Task SetReadyOnManufacturerCallbackAsync([Body] SetReadyOnManufacturerCallbackRequest request);
+
+        [Put("/Manufacture/sentToManufacturerCallback")]
+        Task SentToManufacturerCallbackAsync([Body] SentToManufacturerCallbackRequest request);
     }
 }
 

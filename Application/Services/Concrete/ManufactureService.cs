@@ -19,17 +19,20 @@ namespace Application.Services.Concrete
         private readonly TaxoqrafResponseHandler<ManufactureApiResponse> _responseHandler;
         private readonly IControlCardRequestXmlConverter _xmlConverter;
         private readonly ILoggingService _loggingService;
+        private readonly IJobNumberService _jobNumberService;
 
         public ManufactureService(
             IManufactureApiClient manufactureApiClient,
             TaxoqrafResponseHandler<ManufactureApiResponse> responseHandler,
             IControlCardRequestXmlConverter xmlConverter,
-            ILoggingService loggingService)
+            ILoggingService loggingService,
+            IJobNumberService jobNumberService)
         {
             _manufactureApiClient = manufactureApiClient ?? throw new ArgumentNullException(nameof(manufactureApiClient));
             _responseHandler = responseHandler ?? throw new ArgumentNullException(nameof(responseHandler));
             _xmlConverter = xmlConverter ?? throw new ArgumentNullException(nameof(xmlConverter));
             _loggingService = loggingService;
+            _jobNumberService = jobNumberService;
         }
 
 
@@ -60,6 +63,10 @@ namespace Application.Services.Concrete
 
                 foreach (var cardExport in cardExports)
                 {
+                    cardExport.JobNumber = await _jobNumberService.GetNextJobNumberAsync();
+                    cardExport.CreationTime = DateTime.UtcNow;
+
+
                     await _loggingService.SaveExportJobLog(
                         cardExport.JobNumber,
                         cardExport.EquipmentType.ToString(),
@@ -90,6 +97,14 @@ namespace Application.Services.Concrete
                 throw new ArgumentNullException(nameof(request));
 
             await _manufactureApiClient.SetReadyOnManufacturerCallbackAsync(request);
+        }
+
+        public async Task SentToManufacturerCallback(SentToManufacturerCallbackRequest request)
+        {
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            await _manufactureApiClient.SentToManufacturerCallbackAsync(request);
         }
     }
 }

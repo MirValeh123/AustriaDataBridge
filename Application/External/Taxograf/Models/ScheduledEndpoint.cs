@@ -7,5 +7,6 @@
         public string Method { get; set; } = "GET";
         public TimeSpan Interval { get; set; }
         public DateTime LastRun { get; set; }
+        public bool RequiresBody { get; set; }
     }
 }
